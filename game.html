@@ -1,0 +1,368 @@
+<!doctype html>
+<html>
+<head>
+    <title>My fancy game</title>
+</head>
+<body>
+ <canvas id="canvas" style="border:1px solid #000"></canvas>
+<script>
+// All of our JavaScript will go here.
+
+(function() {
+    var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+    window.requestAnimationFrame = requestAnimationFrame;
+})();
+var canvas = document.getElementById("canvas"),
+    ctx = canvas.getContext("2d"),
+    width = 800,
+    height = 500,
+    player = {
+      x : width/2,
+      y : height - 5,
+      width : 5,
+      height : 5,
+      speed: 3,
+      velX: 0,
+      velY: 0,
+      jumping:false,
+      grounded: false,
+      projectileTimer: Date.now(),
+      shootDelay: 200
+    },
+    keys = [],
+    friction = 0.90,
+    gravity = 0.3,
+    projectiles = [];
+canvas.width = width;
+canvas.height = height;
+
+var facing = "E";
+var count = 0;
+var  currX, currY;
+
+var boxes = []
+
+var item = {
+    x: Math.random() * canvas.width,
+    y: height - 10,
+    width: 10,
+    height: 10,
+    color: 'green'
+};
+
+var PATH_CHAR = "sprite_sheet2.png";
+
+var CHAR_WIDTH = 24,
+    CHAR_HEIGHT = 32,
+    IMAGE_START_EAST_Y = 32,
+    IMAGE_START_WEST_Y = 96,
+    SPRITE_WIDTH = 72;
+
+var TEXT_PRELOADING = "Loading ...", 
+    TEXT_PRELOADING_X = 200, 
+    TEXT_PRELOADING_Y = 200;
+
+var charImage = new Image();
+// charImage.ready = false;
+charImage.onload = setAssetReady;
+charImage.src = PATH_CHAR;
+
+function setAssetReady()
+{
+    this.ready = true;
+}
+
+//Display Preloading
+// ctx.fillStyle = "grey";
+// ctx.fillRect(0,0,canvas.width,canvas.height);
+// ctx.fillStyle = "#000";
+// ctx.fillText(TEXT_PRELOADING, TEXT_PRELOADING_X, TEXT_PRELOADING_Y);
+// var preloader = setInterval(preloading, TIME_PER_FRAME);
+
+currX = 0;
+currY = IMAGE_START_EAST_Y;
+
+// dimensions
+boxes.push({
+    x: 0,
+    y: 0,
+    width: 10,
+    height: height
+});
+boxes.push({
+    x: 0,
+    y: height - 2,
+    width: width,
+    height: 50
+});
+boxes.push({
+    x: width - 10,
+    y: 0,
+    width: 50,
+    height: height
+});
+ boxes.push({
+    x: 120,
+    y: 10,
+    width: 80,
+    height: 80
+});
+boxes.push({
+    x: 170,
+    y: 50,
+    width: 80,
+    height: 80
+});
+boxes.push({
+    x: 220,
+    y: 100,
+    width: 80,
+    height: 80
+});
+boxes.push({
+    x: 270,
+    y: 150,
+    width: 40,
+    height: 40
+});
+
+
+function update() {
+    count++;
+
+    executeCommands();
+
+    // update values
+    updateProjectiles();
+    updateSpriteSheetCoordinates();
+    updatePlayerVelocity();
+    updatePlayerCoordinates();
+
+    clearCanvas();
+
+    // draw objects
+    drawProjectiles();
+    drawPlayer();
+    drawPlatforms();
+    drawMonster();
+
+    // handle collision    
+    handlePlayerMonsterCollision();
+    handleProjectileMonsterCollision();
+
+    requestAnimationFrame(update);
+}
+
+function Projectile(x, y, direction, size, color, speed) {
+    this.x = x;
+    this.y = y;
+    this.direction = facing;
+    this.size = size;
+    this.color = color;
+    this.speed = speed;
+}
+
+function updateProjectiles() {
+    for (var key in projectiles) {
+        console.log("inside update projectiles");
+        if(projectiles[key].direction == "E")
+            projectiles[key].x += 5; 
+        else 
+            projectiles[key].x -= 5; 
+        if (projectiles[key].x > canvas.width || projectiles[key].x < 0) {
+            projectiles.splice(key, 1);
+        }
+    }
+}
+
+function drawSquare(x, y, size, color) {
+    console.log("inside draw square");
+    ctx.fillStyle = "red";
+    ctx.fillRect(Math.round(x), Math.round(y), size, size);
+}
+function clearCanvas() {
+    ctx.clearRect(0, 0, width, height);
+}
+function updatePlayerVelocity() {
+    player.velX *= friction;
+    player.velY += gravity;
+}
+function handleProjectileMonsterCollision() {
+    for (var key in projectiles) {
+        if (
+            projectiles[key].x < item.x + item.width &&
+            projectiles[key].x + 10 > item.x &&
+            projectiles[key].y < item.y + item.height &&
+            projectiles[key].y + 10 > item.y
+        ) {
+            item.x = Math.random() * canvas.width;
+            item.y = height - 10;
+            projectiles.splice(key, 1);
+        }
+    }
+}
+function handlePlayerMonsterCollision() {
+    // handling collision with monster
+    if (
+        player.x < item.x + item.width &&
+        player.x + player.width > item.x &&
+        player.y < item.y + item.height &&
+        player.y + player.height > item.y
+    ) {
+        // item.x = Math.random() * canvas.width;
+        // item.y = height - 10;
+        console.log("you are dead");
+    }
+}
+function drawMonster() {
+    ctx.fillStyle = item.color;
+    ctx.fillRect(item.x, item.y, item.width, item.height);
+}
+function updatePlayerCoordinates() {
+    if(player.grounded){
+         player.velY = 0;
+    }
+    
+    player.x += player.velX;
+    player.y += player.velY;
+}
+function drawPlatforms() {
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    
+    player.grounded = false;
+    for (var i = 0; i < boxes.length; i++) {
+        ctx.rect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
+        
+        var dir = colCheck(player, boxes[i]);
+
+        if (dir === "l" || dir === "r") {
+            player.velX = 0;
+            player.jumping = false;
+        } else if (dir === "b") {
+            player.grounded = true;
+            player.jumping = false;
+        } else if (dir === "t") {
+            player.velY *= -1;
+        }
+
+    }
+    ctx.fill();
+}
+function drawPlayer() {
+    // draw a small red box, which will eventually become our player.
+    // ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+    // ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.drawImage(charImage,currX,currY, CHAR_WIDTH,CHAR_HEIGHT,
+                    player.x-10,player.y-23,CHAR_WIDTH,CHAR_HEIGHT);
+}
+function drawProjectiles() {
+    for (var key in projectiles) {
+        drawSquare(projectiles[key].x, projectiles[key].y, projectiles[key].size, projectiles[key].color);
+    }
+}
+function updateSpriteSheetCoordinates() {
+    if(facing=="E") {
+        currY = IMAGE_START_EAST_Y;
+    } else {
+        currY = IMAGE_START_WEST_Y;
+    }
+    if (currX >= SPRITE_WIDTH) {
+        currX = 0;
+    }
+}
+function executeCommands() {
+    if (keys[38] || keys[87]) {
+        // up arrow or space
+        if (!player.jumping && player.grounded) {
+            player.jumping = true;
+            player.grounded = false;
+            player.velY = -player.speed * 2;
+        }
+    }
+    if (keys[39] || keys[68]) {
+        // right arrow
+        if (player.velX < player.speed) {
+            player.velX++;
+            if (count%2==0)
+                currX += CHAR_WIDTH;
+            facing = "E";
+        }
+    }
+    if (keys[37] || keys[65]) {
+        // left arrow
+        if (player.velX > -player.speed) {
+            player.velX--;
+            if (count%2==0)
+                currX += CHAR_WIDTH;
+            facing = "W";
+        }
+    }
+    // button z
+    // TODO change to spacebar
+    if(keys[32]) {
+        if(Date.now() - player.projectileTimer > player.shootDelay) {
+            projectiles.push(
+                new Projectile(
+                    player.x + player.width/2,
+                    player.y-10,
+                    facing,
+                    10,
+                    '#0f0',
+                    1000
+                    )
+                );
+        }
+        player.projectileTimer = Date.now();
+    }
+}
+function colCheck(shapeA, shapeB) {
+    // get the vectors to check against
+    var vX = (shapeA.x + (shapeA.width / 2)) - (shapeB.x + (shapeB.width / 2)),
+        vY = (shapeA.y + (shapeA.height / 2)) - (shapeB.y + (shapeB.height / 2)),
+        // add the half widths and half heights of the objects
+        hWidths = (shapeA.width / 2) + (shapeB.width / 2),
+        hHeights = (shapeA.height / 2) + (shapeB.height / 2),
+        colDir = null;
+
+    // if the x and y vector are less than the half width or half height, they we must be inside the object, causing a collision
+    if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
+        // figures out on which side we are colliding (top, bottom, left, or right)
+        var oX = hWidths - Math.abs(vX),
+            oY = hHeights - Math.abs(vY);
+        if (oX >= oY) {
+            if (vY > 0) {
+                colDir = "t";
+                shapeA.y += oY;
+            } else {
+                colDir = "b";
+                shapeA.y -= oY;
+            }
+        } else {
+            if (vX > 0) {
+                colDir = "l";
+                shapeA.x += oX;
+            } else {
+                colDir = "r";
+                shapeA.x -= oX;
+            }
+        }
+    }
+    return colDir;
+}
+
+
+window.addEventListener("load", function(){
+  update();
+});
+
+document.body.addEventListener("keydown", function(e) {
+    keys[e.keyCode] = true;
+});
+ 
+document.body.addEventListener("keyup", function(e) {
+    keys[e.keyCode] = false;
+});
+</script>
+</body>
+</html>
