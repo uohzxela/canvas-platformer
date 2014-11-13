@@ -15,10 +15,10 @@
 var canvas = document.getElementById("canvas"),
     ctx = canvas.getContext("2d"),
     width = 800,
-    height = 500,
+    height = 600,
     player = {
       x : width/2,
-      y : height - 5,
+      y : height - 25,
       width : 5,
       height : 5,
       speed: 3,
@@ -30,11 +30,24 @@ var canvas = document.getElementById("canvas"),
       shootDelay: 200
     },
     keys = [],
-    friction = 0.90,
+    friction = 0.80,
     gravity = 0.3,
     projectiles = [];
 canvas.width = width;
 canvas.height = height;
+
+var monster = {
+    x: null,
+    y: null,
+    width: 5,
+    height: 5,
+    direction: 'E'
+}
+
+var monsters = [];
+var goodThings = [];
+
+
 
 var facing = "E";
 var count = 0;
@@ -82,7 +95,86 @@ function setAssetReady()
 currX = 0;
 currY = IMAGE_START_EAST_Y;
 
-// dimensions
+var GAME_MAP = new Array(
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "###                                     ",
+    "  #                                     ",
+    "  ##   X    G     X             G       ",
+    "  ##################################    ",
+    "             ##                         ",
+    "             ##                       ##",
+    "          G  ##  X G                 ###",
+    "         ###########                ####",
+    "#    #                 ##       ########",
+    "#   ##                ######            ",
+    "#########          ##########           ",
+    "            ##      ##########          ",
+    "           #####                        ",
+    "         ########                 G  ###",
+    "    ######     ##                #######",
+    "##              ###   ###               ",
+    "###               #   #######           ",
+    "######    G       #   #########      X  ",
+    "#####     #                        #####",
+    "        ####   X                  ######",
+    "       #############             #######",
+    "      #####             G  ##   ######  ",
+    " G   ###                ####            ",
+    "##                    ####              ",
+    "###           # #                       ",
+    "####   #  X  ######   G  X     X   ##   ",
+    "########################################"
+    )
+var y,x;
+for(y=0; y<GAME_MAP.length; y++) {
+    var start = null, end = null;
+
+    for(x=0; x<GAME_MAP[y].length; x++) {
+        if(start==null && GAME_MAP[y].charAt(x) == '#') {
+            start = x;
+        }
+        if (start != null && GAME_MAP[y].charAt(x) == ' ') {
+            end = x - 1;
+        }
+        if (start != null && x==GAME_MAP[y].length -1) {
+            end = x;
+        }
+        if (start != null && end != null) {
+            boxes.push({
+                x: start * 20,
+                y: y*20,
+                width: (end-start+1)*20,
+                height: 20
+            });
+            start = end = null;
+        }
+        if (GAME_MAP[y].charAt(x) == 'X') {
+            monsters.push({
+                x: x*20,
+                y: y*20,
+                width: 20,
+                height: 20,
+                direction: "E",
+                velX: Math.random(),
+                leftBoundary: x*20-30,
+                rightBoundary: x*20+30
+            });
+        }
+
+        if(GAME_MAP[y].charAt(x) == 'G') {
+            goodThings.push({
+                x: x*20,
+                y: y*20,
+                width: 20,
+                height: 20
+            });
+        }
+    }
+}
+
+// game frame
 boxes.push({
     x: 0,
     y: 0,
@@ -101,30 +193,9 @@ boxes.push({
     width: 50,
     height: height
 });
- boxes.push({
-    x: 120,
-    y: 10,
-    width: 80,
-    height: 80
-});
-boxes.push({
-    x: 170,
-    y: 50,
-    width: 80,
-    height: 80
-});
-boxes.push({
-    x: 220,
-    y: 100,
-    width: 80,
-    height: 80
-});
-boxes.push({
-    x: 270,
-    y: 150,
-    width: 40,
-    height: 40
-});
+
+
+var monster_direction = "E";
 
 
 function update() {
@@ -137,6 +208,7 @@ function update() {
     updateSpriteSheetCoordinates();
     updatePlayerVelocity();
     updatePlayerCoordinates();
+    updateMonstersCoordinates();
 
     clearCanvas();
 
@@ -145,12 +217,46 @@ function update() {
     drawPlayer();
     drawPlatforms();
     drawMonster();
+    drawGoodThings();
+    // if(monster_direction=="E") {
+    //     item.x += 3;
+    // } else {
+    //     item.x -= 3;
+    // }
+
+    // if(item.x > width) {
+    //     monster_direction = "W";
+    // }
+    // if(item.x < 0) {
+    //     monster_direction = "E";
+    // }
+
 
     // handle collision    
     handlePlayerMonsterCollision();
     handleProjectileMonsterCollision();
+    handleProjectilePlatformCollision();
+    handlePlayerGoodThingCollision();
 
     requestAnimationFrame(update);
+}
+
+function updateMonstersCoordinates() {
+    for (var i=0; i<monsters.length; i++) {
+        var monster = monsters[i];
+        if(monster.direction=="E") {
+            monster.x += monster.velX;
+        } else {
+            monster.x -= monster.velX;
+        }
+
+        if(monster.x > monster.rightBoundary) {
+            monster.direction = "W";
+        }
+        if(monster.x < monster.leftBoundary) {
+            monster.direction = "E";
+        }
+    }
 }
 
 function Projectile(x, y, direction, size, color, speed) {
@@ -164,19 +270,20 @@ function Projectile(x, y, direction, size, color, speed) {
 
 function updateProjectiles() {
     for (var key in projectiles) {
-        console.log("inside update projectiles");
+        //console.log("inside update projectiles");
         if(projectiles[key].direction == "E")
             projectiles[key].x += 5; 
         else 
             projectiles[key].x -= 5; 
         if (projectiles[key].x > canvas.width || projectiles[key].x < 0) {
+            console.log("removed projectile");
             projectiles.splice(key, 1);
         }
     }
 }
 
 function drawSquare(x, y, size, color) {
-    console.log("inside draw square");
+    // console.log("inside draw square");
     ctx.fillStyle = "red";
     ctx.fillRect(Math.round(x), Math.round(y), size, size);
 }
@@ -189,34 +296,93 @@ function updatePlayerVelocity() {
 }
 function handleProjectileMonsterCollision() {
     for (var key in projectiles) {
-        if (
-            projectiles[key].x < item.x + item.width &&
-            projectiles[key].x + 10 > item.x &&
-            projectiles[key].y < item.y + item.height &&
-            projectiles[key].y + 10 > item.y
-        ) {
-            item.x = Math.random() * canvas.width;
-            item.y = height - 10;
-            projectiles.splice(key, 1);
+        for(var i=0; i<monsters.length; i++) {
+            var monster = monsters[i];
+            if (projectiles[key] == null) {
+                console.log("projectile null");
+                continue;
+            }
+            if (
+                projectiles[key].x < monster.x + monster.width &&
+                projectiles[key].x + 10 > monster.x &&
+                projectiles[key].y < monster.y + monster.height &&
+                projectiles[key].y + 10 > monster.y
+            ) {
+                // item.x = Math.random() * canvas.width;
+                // item.y = height - 10;
+                monsters.splice(i, 1);
+                projectiles.splice(key, 1);
+            }
         }
     }
 }
-function handlePlayerMonsterCollision() {
-    // handling collision with monster
-    if (
-        player.x < item.x + item.width &&
-        player.x + player.width > item.x &&
-        player.y < item.y + item.height &&
-        player.y + player.height > item.y
-    ) {
-        // item.x = Math.random() * canvas.width;
-        // item.y = height - 10;
-        console.log("you are dead");
+
+function handleProjectilePlatformCollision() {
+    for(var key in projectiles) {
+        for(var i=0; i<boxes.length; i++) {
+            // var isCollided = colCheck(projectiles[key], boxes[i]);
+            if(projectiles[key] == null) continue;
+            if (
+                projectiles[key].x < boxes[i].x + boxes[i].width &&
+                projectiles[key].x + 10 > boxes[i].x &&
+                projectiles[key].y < boxes[i].y + boxes[i].height &&
+                projectiles[key].y + 10 > boxes[i].y
+            ) {
+                projectiles.splice(key, 1);
+            }
+        }
     }
 }
+
+function handlePlayerMonsterCollision() {
+    // handling collision with monster
+    for(var i=0; i<monsters.length; i++) {
+        var monster = monsters[i];
+        if (
+            player.x < monster.x + monster.width &&
+            player.x + monster.width > monster.x &&
+            player.y < monster.y + monster.height &&
+            player.y + player.height > monster.y
+        ) {
+            // item.x = Math.random() * canvas.width;
+            // item.y = height - 10;
+            console.log("you are dead");
+        }
+    }
+}
+
+function handlePlayerGoodThingCollision() {
+    // handling collision with monster
+    for(var i=0; i<goodThings.length; i++) {
+        var g = goodThings[i];
+        if (
+            player.x < g.x + g.width &&
+            player.x + g.width > g.x &&
+            player.y < g.y + g.height &&
+            player.y + player.height >g.y
+        ) {
+            // item.x = Math.random() * canvas.width;
+            // item.y = height - 10;
+            goodThings.splice(i, 1);
+        }
+    }
+}
+
+function drawGoodThings() {
+    for(var i=0; i<goodThings.length; i++) {
+        var g = goodThings[i];
+        ctx.fillStyle = "green";
+        ctx.fillRect(g.x, g.y, g.width, g.height);
+    }
+}
+
 function drawMonster() {
-    ctx.fillStyle = item.color;
-    ctx.fillRect(item.x, item.y, item.width, item.height);
+
+    for(var i=0; i<monsters.length; i++) {
+        var monster = monsters[i];
+        ctx.fillStyle = "red";
+        ctx.fillRect(monster.x, monster.y, monster.width, monster.height);
+    }
 }
 function updatePlayerCoordinates() {
     if(player.grounded){
