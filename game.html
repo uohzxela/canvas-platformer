@@ -4,17 +4,35 @@
     <title>My fancy game</title>
 </head>
 <body>
- <canvas id="canvas" style="border:1px solid #000"></canvas>
+    <div id="SplashScreen" style="border:1px solid #000; width: 1000px; height: 600px; ">
+        <div align="center" style = "margin-top:100px; margin-right: 100px; margin-left: 100px">
+            <h1>My Little Platformer</h1>
+            <h3>Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind!
+            Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind!</h3>
+            <input id="StartButton" type="button" value="Start" onclick="startGame()" />
+        </div>
+    </div>
+
+ <canvas id="canvas" style="border:1px solid #000; display:none"></canvas>
 <script>
 // All of our JavaScript will go here.
 
+
+var isStarted = false;
+// start game function 
+function startGame() {
+    isStarted = true;
+    startTime = new Date().getTime();
+    document.getElementById("SplashScreen").style.display = "none";
+    document.getElementById("canvas").style.display = "block";
+}
 (function() {
     var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
     window.requestAnimationFrame = requestAnimationFrame;
 })();
 var canvas = document.getElementById("canvas"),
     ctx = canvas.getContext("2d"),
-    width = 800,
+    width = 1000,
     height = 600,
     player = {
       x : width/2,
@@ -36,32 +54,28 @@ var canvas = document.getElementById("canvas"),
 canvas.width = width;
 canvas.height = height;
 
-var monster = {
-    x: null,
-    y: null,
-    width: 5,
-    height: 5,
-    direction: 'E'
-}
+var gameWidth = 800;
 
 var monsters = [];
 var goodThings = [];
+var exit;
 
+var score = 100;
+var startTime;
+var givenTime = 100;
+var elapsedTime, remainingTime;
 
+// level handling
+var isGameOver = false;
+var isNextLevel = false;
 
 var facing = "E";
+// arbitrary counter
 var count = 0;
 var  currX, currY;
 
+// for platform creation
 var boxes = []
-
-var item = {
-    x: Math.random() * canvas.width,
-    y: height - 10,
-    width: 10,
-    height: 10,
-    color: 'green'
-};
 
 var PATH_CHAR = "sprite_sheet2.png";
 
@@ -77,20 +91,30 @@ var TEXT_PRELOADING = "Loading ...",
 
 var charImage = new Image();
 // charImage.ready = false;
-charImage.onload = setAssetReady;
+// charImage.onload = setAssetReady;
 charImage.src = PATH_CHAR;
 
-function setAssetReady()
-{
-    this.ready = true;
-}
+// function setAssetReady()
+// {
+//     this.ready = true;
+// }
 
-//Display Preloading
+
 // ctx.fillStyle = "grey";
 // ctx.fillRect(0,0,canvas.width,canvas.height);
 // ctx.fillStyle = "#000";
 // ctx.fillText(TEXT_PRELOADING, TEXT_PRELOADING_X, TEXT_PRELOADING_Y);
-// var preloader = setInterval(preloading, TIME_PER_FRAME);
+// var preloader = requestAnimationFrame(preloading);
+
+// function preloading()
+// {   
+//     if (charImage.ready && false)
+//     {
+//         clearInterval(preloader);
+        
+//         requestAnimationFrame(update); 
+//     }
+// }
 
 currX = 0;
 currY = IMAGE_START_EAST_Y;
@@ -98,7 +122,7 @@ currY = IMAGE_START_EAST_Y;
 var GAME_MAP = new Array(
     "                                        ",
     "                                        ",
-    "                                        ",
+    " E                                      ",
     "###                                     ",
     "  #                                     ",
     "  ##   X    G     X             G       ",
@@ -171,6 +195,15 @@ for(y=0; y<GAME_MAP.length; y++) {
                 height: 20
             });
         }
+
+        if(GAME_MAP[y].charAt(x) == 'E') {
+            exit = {
+                x: x*20,
+                y: y*20,
+                width: 20,
+                height: 20
+            };
+        }
     }
 }
 
@@ -184,11 +217,11 @@ boxes.push({
 boxes.push({
     x: 0,
     y: height - 2,
-    width: width,
+    width: gameWidth,
     height: 50
 });
 boxes.push({
-    x: width - 10,
+    x: gameWidth - 10,
     y: 0,
     width: 50,
     height: height
@@ -199,46 +232,114 @@ var monster_direction = "E";
 
 
 function update() {
-    count++;
+    console.log("is started: " + isStarted);
+    if(isStarted === true) {
+        count++;
 
-    executeCommands();
+        executeCommands();
 
-    // update values
-    updateProjectiles();
-    updateSpriteSheetCoordinates();
-    updatePlayerVelocity();
-    updatePlayerCoordinates();
-    updateMonstersCoordinates();
+        // update values
+        updateProjectiles();
+        updateSpriteSheetCoordinates();
+        updatePlayerVelocity();
+        updatePlayerCoordinates();
+        updateMonstersCoordinates();
 
-    clearCanvas();
+        clearCanvas();
 
-    // draw objects
-    drawProjectiles();
-    drawPlayer();
-    drawPlatforms();
-    drawMonster();
-    drawGoodThings();
-    // if(monster_direction=="E") {
-    //     item.x += 3;
-    // } else {
-    //     item.x -= 3;
-    // }
+        // draw objects
+        drawProjectiles();
+        drawPlayer();
+        drawPlatforms();
+        drawMonster();
+        drawGoodThings();
+        drawGUI();
+        drawExit();
+        // if(monster_direction=="E") {
+        //     item.x += 3;
+        // } else {
+        //     item.x -= 3;
+        // }
 
-    // if(item.x > width) {
-    //     monster_direction = "W";
-    // }
-    // if(item.x < 0) {
-    //     monster_direction = "E";
-    // }
+        // if(item.x > width) {
+        //     monster_direction = "W";
+        // }
+        // if(item.x < 0) {
+        //     monster_direction = "E";
+        // }
 
 
-    // handle collision    
-    handlePlayerMonsterCollision();
-    handleProjectileMonsterCollision();
-    handleProjectilePlatformCollision();
-    handlePlayerGoodThingCollision();
+        // handle collision    
+        handlePlayerMonsterCollision();
+        handleProjectileMonsterCollision();
+        handleProjectilePlatformCollision();
+        handlePlayerGoodThingCollision();
+        handlePlayerExitCollision();
 
+        
+    }
     requestAnimationFrame(update);
+}
+
+function handleNextLevel() {
+    if(isNextLevel == true) {
+        // notify player that he finished the current level
+        // reposition char at origin
+        // update score + remaining secs
+        // update GUI with current level number
+        // update GUI with new timer
+    }
+}
+
+function handleGameOver() {
+    if(isGameOver == true) {
+        // draw a translucent screen
+        // show high score table
+        // show start again? button
+
+    }
+}
+
+function drawExit() {
+    if(goodThings.length == 0 ) {
+        ctx.fillStyle = "gold";
+        ctx.fillRect(exit.x, exit.y, exit.width, exit.height);
+    }
+}
+
+function drawGUI() {
+    ctx.font="20px Arial";
+    ctx.fillStyle = "black";
+    ctx.fillText("Score:",gameWidth+80,width/2-100);
+    ctx.strokeRect(gameWidth+60,width/2-90, 100, 30);
+    if(score<10) {
+        ctx.fillText(score,gameWidth+100,width/2-70);
+    } else if (score < 1000) {
+        ctx.fillText(score,gameWidth+95,width/2-70);
+    } else {
+        ctx.fillText(score,gameWidth+90,width/2-70);
+    }
+    ctx.fillText("Time:",gameWidth+80,width/2-250);
+    ctx.fillStyle = "black";
+    ctx.strokeRect(gameWidth+60,width/2-240, 100, 30);
+
+
+
+    elapsedTime = parseInt((new Date().getTime()-startTime)/1000, 10);
+    remainingTime = givenTime - elapsedTime;
+    if (remainingTime >= 0 ) {
+        // hack for smooth linear transition of RGB values from green to red
+        var percent = 1 - remainingTime/givenTime;
+        var R = Math.round((255 * 100*percent) / 100);
+        var G = Math.round((255 * (100 - 100*percent)) / 100) ;
+        var B = 0;
+        // timer bar
+        ctx.fillStyle = "rgb(" + R + "," + G + "," + B + ")";
+        ctx.fillRect(gameWidth+60+1, width/2-239, 98*(remainingTime/givenTime), 28);
+        // timer text
+        ctx.fillStyle = "black";
+        ctx.fillText(remainingTime,gameWidth+100,width/2-219);
+    }
 }
 
 function updateMonstersCoordinates() {
@@ -312,6 +413,7 @@ function handleProjectileMonsterCollision() {
                 // item.y = height - 10;
                 monsters.splice(i, 1);
                 projectiles.splice(key, 1);
+                score++;
             }
         }
     }
@@ -367,6 +469,22 @@ function handlePlayerGoodThingCollision() {
         }
     }
 }
+
+function handlePlayerExitCollision() {
+    if (
+        player.x < exit.x + exit.width &&
+        player.x + exit.width > exit.x &&
+        player.y < exit.y + exit.height &&
+        player.y + player.height >exit.y &&
+        goodThings.length == 0
+    ) {
+        // item.x = Math.random() * canvas.width;
+        // item.y = height - 10;
+        isNextLevel = true;
+        console.log("you won this level");
+    }
+}
+
 
 function drawGoodThings() {
     for(var i=0; i<goodThings.length; i++) {
