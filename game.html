@@ -13,16 +13,37 @@
         </div>
     </div>
 
- <canvas id="canvas" style="border:1px solid #000; display:none"></canvas>
+<canvas id="canvas" style="border:1px solid #000; display:none"></canvas>
+<div>
+    <input id="RestartButton" type="button" value = "Play again!" onclick="restartGame()" style="position: absolute; left:370px; top:500px;display:none" />
+</div>
 <script>
 // All of our JavaScript will go here.
 
+function restartGame() {
+    document.getElementById("RestartButton").style.display = "none";
+    givenTime = 100;
+    startTime = new Date().getTime();
+    isGameOver = false;
+    isFirstTime = true;
+    currentLevel = 1;
+    monsters = [];
+    goodThings = [];
+    keys = [];
+    initialiseMap();
+    player.x = playerInitX;
+    player.y = playerInitY;
+    player.velX = 0;
+    player.velY = 0;
+    player.score = initScore;
+}
 
 var isStarted = false;
 // start game function 
 function startGame() {
     isStarted = true;
     startTime = new Date().getTime();
+    initialiseMap();
     document.getElementById("SplashScreen").style.display = "none";
     document.getElementById("canvas").style.display = "block";
 }
@@ -35,7 +56,7 @@ var canvas = document.getElementById("canvas"),
     width = 1000,
     height = 600,
     player = {
-      x : width/2,
+      x : width/2-90,
       y : height - 25,
       width : 5,
       height : 5,
@@ -45,7 +66,11 @@ var canvas = document.getElementById("canvas"),
       jumping:false,
       grounded: false,
       projectileTimer: Date.now(),
-      shootDelay: 200
+      shootDelay: 200,
+      name: "Alex",
+      score: 0,
+      cheatmode: false,
+      bullets: 8
     },
     keys = [],
     friction = 0.80,
@@ -53,6 +78,10 @@ var canvas = document.getElementById("canvas"),
     projectiles = [];
 canvas.width = width;
 canvas.height = height;
+
+var playerInitX = width/2-90;
+var playerInitY = height-25;
+var initScore = 0;
 
 var gameWidth = 800;
 
@@ -68,6 +97,9 @@ var elapsedTime, remainingTime;
 // level handling
 var isGameOver = false;
 var isNextLevel = false;
+var isFirstTime = true;
+var scoreTable;
+var currentLevel = 1;
 
 var facing = "E";
 // arbitrary counter
@@ -151,58 +183,82 @@ var GAME_MAP = new Array(
     "####   #  X  ######   G  X     X   ##   ",
     "########################################"
     )
-var y,x;
-for(y=0; y<GAME_MAP.length; y++) {
-    var start = null, end = null;
+function initialiseMap() {
+    var y,x;
+    for(y=0; y<GAME_MAP.length; y++) {
+        var start = null, end = null;
 
-    for(x=0; x<GAME_MAP[y].length; x++) {
-        if(start==null && GAME_MAP[y].charAt(x) == '#') {
-            start = x;
-        }
-        if (start != null && GAME_MAP[y].charAt(x) == ' ') {
-            end = x - 1;
-        }
-        if (start != null && x==GAME_MAP[y].length -1) {
-            end = x;
-        }
-        if (start != null && end != null) {
-            boxes.push({
-                x: start * 20,
-                y: y*20,
-                width: (end-start+1)*20,
-                height: 20
-            });
-            start = end = null;
-        }
-        if (GAME_MAP[y].charAt(x) == 'X') {
-            monsters.push({
-                x: x*20,
-                y: y*20,
-                width: 20,
-                height: 20,
-                direction: "E",
-                velX: Math.random(),
-                leftBoundary: x*20-30,
-                rightBoundary: x*20+30
-            });
-        }
+        for(x=0; x<GAME_MAP[y].length; x++) {
+            if(start==null && GAME_MAP[y].charAt(x) == '#') {
+                start = x;
+            }
+            if (start != null && GAME_MAP[y].charAt(x) == ' ') {
+                end = x - 1;
+            }
+            if (start != null && x==GAME_MAP[y].length -1) {
+                end = x;
+            }
+            if (start != null && end != null) {
+                boxes.push({
+                    x: start * 20,
+                    y: y*20,
+                    width: (end-start+1)*20,
+                    height: 20
+                });
+                start = end = null;
+            }
+            if (GAME_MAP[y].charAt(x) == 'X') {
+                monsters.push({
+                    x: x*20,
+                    y: y*20,
+                    width: 20,
+                    height: 20,
+                    direction: "E",
+                    velX: Math.random(),
+                    leftBoundary: x*20-30,
+                    rightBoundary: x*20+30
+                });
+            }
 
-        if(GAME_MAP[y].charAt(x) == 'G') {
-            goodThings.push({
-                x: x*20,
-                y: y*20,
-                width: 20,
-                height: 20
-            });
-        }
+            if(GAME_MAP[y].charAt(x) == 'G') {
+                goodThings.push({
+                    x: x*20,
+                    y: y*20,
+                    width: 20,
+                    height: 20
+                });
+            }
 
-        if(GAME_MAP[y].charAt(x) == 'E') {
-            exit = {
-                x: x*20,
-                y: y*20,
-                width: 20,
-                height: 20
-            };
+            if(GAME_MAP[y].charAt(x) == 'E') {
+                exit = {
+                    x: x*20,
+                    y: y*20,
+                    width: 20,
+                    height: 20
+                };
+            }
+        }
+    }
+}
+
+function spawnMonsters() {
+    var y,x;
+    for(y=0; y<GAME_MAP.length; y++) {
+        var start = null, end = null;
+
+        for(x=0; x<GAME_MAP[y].length; x++) {
+            if (GAME_MAP[y].charAt(x) == 'X') {
+                monsters.push({
+                    x: x*20,
+                    y: y*20,
+                    width: 20,
+                    height: 20,
+                    direction: "E",
+                    velX: Math.random(),
+                    leftBoundary: x*20-30,
+                    rightBoundary: x*20+30
+                });
+            }
         }
     }
 }
@@ -232,11 +288,12 @@ var monster_direction = "E";
 
 
 function update() {
-    console.log("is started: " + isStarted);
+    // console.log("is started: " + isStarted);
     if(isStarted === true) {
         count++;
-
-        executeCommands();
+        if(!isGameOver == true) {
+            executeCommands();
+        }
 
         // update values
         updateProjectiles();
@@ -275,31 +332,173 @@ function update() {
         handleProjectilePlatformCollision();
         handlePlayerGoodThingCollision();
         handlePlayerExitCollision();
+        handleNextLevel();
+
+        handleGameOver();
 
         
     }
     requestAnimationFrame(update);
 }
 
+function ScoreRecord(name, score) {
+    this.name = name;
+    this.score = score;
+}
+
+function getHighScoreTable() {
+    var scoreTable = new Array();
+    // console.log("doc cookie: " + document.cookie);
+    for(var i=0; i<10; i++) {
+        var cookieName = "player" + i;
+        // console.log("player i: " + cookieName);
+        // var scoreRecord = getCookie(cookieName);
+        var scoreRecord = localStorage.getItem(cookieName);
+        if(scoreRecord == null) {
+            // console.log("score record is null");
+            break;
+        } 
+        var name = scoreRecord.split("~")[0];
+        var score = scoreRecord.split("~")[1];
+        // console.log("name: " + name);
+        scoreTable.push(new ScoreRecord(name, score));
+    }
+    return scoreTable;
+}
+//
+// This function stores the high score table to the cookies
+//
+function setHighScoreTable(table) {
+    for (var i = 0; i < 10; i++) {
+        // If i is more than the length of the high score table exit
+        // from the for loop
+        if (i >= table.length) break;
+
+        // Contruct the cookie name
+        var cookieName = "player" + i;
+        var name = table[i].name;
+        var score = table[i].score;
+
+        // Store the ith record as a cookie using the cookie name
+        localStorage.setItem(cookieName, name +"~"+score);
+    }
+}
+
+function addHighScore(name, score) {
+    var table = getHighScoreTable();
+    console.log("table length: " + table.length);
+
+    for(var i=0; i<table.length; i++) {
+        if(score >= table[i].score) {
+            var record = new ScoreRecord(name, score);
+            console.log("splicing table");
+            table.splice(i, 0, record);
+            return table;
+        }
+    }
+    if (table.length <= 10) {
+        table.push(new ScoreRecord(name, score));
+    }
+    return table;
+}
+function setCookie(name, value, expires, path, domain, secure) { 
+     var curCookie = name + "=" + escape(value) + 
+     ((expires) ? "; expires=" + expires.toGMTString() : "") + 
+     ((path) ? "; path=" + path : "") + 
+     ((domain) ? "; domain=" + domain : "") + 
+     ((secure) ? "; secure" : ""); 
+     // console.log("curCookie: " + curCookie);
+     document.cookie = curCookie; 
+     // console.log("document cookie: " + document.cookie);
+} 
+
+
+function getCookie(name) { 
+     var dc = document.cookie; 
+     var prefix = name + "="; 
+     var begin = dc.indexOf("; " + prefix); 
+     if (begin == -1) { 
+        begin = dc.indexOf(prefix); 
+     if (begin != 0) return null; 
+     } else begin += 2; 
+     var end = document.cookie.indexOf(";", begin); 
+     if (end == -1) end = dc.length; 
+     return unescape(dc.substring(begin + prefix.length, end)); 
+}
+
 function handleNextLevel() {
     if(isNextLevel == true) {
         // notify player that he finished the current level
+        alert("you owned this lvl :)");
         // reposition char at origin
+        player.x = playerInitX;
+        player.y = playerInitY;
+        player.velX = 0;
+        player.velY = 0;
+        keys = [];
         // update score + remaining secs
+        player.score += remainingTime;
         // update GUI with current level number
-        // update GUI with new timer
+        currentLevel++;
+        // update GUI with new timer + remaining sec
+        givenTime = 100 + remainingTime;
+        startTime = new Date().getTime();
+        // populate map with more monsters
+        monsters = [];
+        goodThings = [];
+        initialiseMap();
+        for(var i=1; i<currentLevel; i++) {
+            spawnMonsters();
+        }
+        isNextLevel = false;
     }
 }
 
 function handleGameOver() {
-    if(isGameOver == true) {
-        // draw a translucent screen
-        // show high score table
-        // show start again? button
-
+    if(isGameOver == true) { 
+        if(isFirstTime == true) {
+            var table = addHighScore(player.name, player.score);
+            setHighScoreTable(table);
+        }
+        drawGameOverScreen();
+        document.getElementById("RestartButton").style.display = "block";
+        isFirstTime = false;
     }
 }
+function drawGameOverScreen() {
+    ctx.fillStyle = "rgba(0, 0, 200, 0.7)";
+    ctx.fillRect(50, 50, gameWidth-100, height-100);
+    ctx.fillStyle = "white";
+    ctx.font = "100px Arial";
+    ctx.fillText("Game Over", 150, 150);
 
+    var table = getHighScoreTable();
+    ctx.fillStyle = "white";
+    ctx.fillRect(80, 170, gameWidth-160, height-300);
+    ctx.font = "30px Arial";
+    ctx.fillStyle = "black";
+    ctx.fillText("High Score", 320, 210);
+    ctx.font = "15px Arial";
+    for(var i=0; i<table.length; i++) {
+        var name = table[i].name;
+        var score = table[i].score;
+        // console.log("name.length: " + name.length + ", score.length: " + score.length);
+        var numSpaces = 35 - name.length - score.length;
+        if(numSpaces + name.length + score.length != 35) console.log("not 35");
+        var str = name+ whiteSpace(numSpaces) + score;
+        if(str.length != 36) console.log("str len: " + str.length);
+        ctx.fillText(name, 310, 240+i*20);
+        ctx.fillText(score, 310+145, 240+i*20);
+        // console.log("string len: " + (name+ whiteSpace(35 - name.length - score.length) + score).length);
+    }
+}
+function whiteSpace(num) {
+    var sp = " ";
+    for(var i=0; i<num ;i++) {
+        sp += " ";
+    }
+    return sp;
+}
 function drawExit() {
     if(goodThings.length == 0 ) {
         ctx.fillStyle = "gold";
@@ -308,10 +507,16 @@ function drawExit() {
 }
 
 function drawGUI() {
+    ctx.font="15px Arial";
+    ctx.fillStyle = "black";
+    ctx.fillText("Cheat mode: " + (player.cheatmode ? "On" : "Off"), gameWidth+60, width/2);
     ctx.font="20px Arial";
     ctx.fillStyle = "black";
+    ctx.fillText("Level " + currentLevel, gameWidth+80, width/2-300);
+    ctx.fillText("Bullets: " + player.bullets, gameWidth+70, width/2-150);
     ctx.fillText("Score:",gameWidth+80,width/2-100);
     ctx.strokeRect(gameWidth+60,width/2-90, 100, 30);
+    var score = player.score;
     if(score<10) {
         ctx.fillText(score,gameWidth+100,width/2-70);
     } else if (score < 1000) {
@@ -327,7 +532,7 @@ function drawGUI() {
 
     elapsedTime = parseInt((new Date().getTime()-startTime)/1000, 10);
     remainingTime = givenTime - elapsedTime;
-    if (remainingTime >= 0 ) {
+    if (!isGameOver && remainingTime >= 0) {
         // hack for smooth linear transition of RGB values from green to red
         var percent = 1 - remainingTime/givenTime;
         var R = Math.round((255 * 100*percent) / 100);
@@ -339,6 +544,9 @@ function drawGUI() {
         // timer text
         ctx.fillStyle = "black";
         ctx.fillText(remainingTime,gameWidth+100,width/2-219);
+    } 
+    if(remainingTime <= 0 && player.cheatmode == false) {
+        isGameOver = true;
     }
 }
 
@@ -413,7 +621,7 @@ function handleProjectileMonsterCollision() {
                 // item.y = height - 10;
                 monsters.splice(i, 1);
                 projectiles.splice(key, 1);
-                score++;
+                player.score++;
             }
         }
     }
@@ -444,11 +652,13 @@ function handlePlayerMonsterCollision() {
             player.x < monster.x + monster.width &&
             player.x + monster.width > monster.x &&
             player.y < monster.y + monster.height &&
-            player.y + player.height > monster.y
+            player.y + player.height > monster.y &&
+            player.cheatmode == false
         ) {
             // item.x = Math.random() * canvas.width;
             // item.y = height - 10;
-            console.log("you are dead");
+            isGameOver = true;
+            // console.log("you are dead");
         }
     }
 }
@@ -466,6 +676,7 @@ function handlePlayerGoodThingCollision() {
             // item.x = Math.random() * canvas.width;
             // item.y = height - 10;
             goodThings.splice(i, 1);
+            player.score += 10;
         }
     }
 }
@@ -537,8 +748,10 @@ function drawPlayer() {
     // draw a small red box, which will eventually become our player.
     // ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
     // ctx.fillRect(player.x, player.y, player.width, player.height);
-    ctx.drawImage(charImage,currX,currY, CHAR_WIDTH,CHAR_HEIGHT,
+    if(!isGameOver) {
+        ctx.drawImage(charImage,currX,currY, CHAR_WIDTH,CHAR_HEIGHT,
                     player.x-10,player.y-23,CHAR_WIDTH,CHAR_HEIGHT);
+    }
 }
 function drawProjectiles() {
     for (var key in projectiles) {
@@ -585,7 +798,7 @@ function executeCommands() {
     // button z
     // TODO change to spacebar
     if(keys[32]) {
-        if(Date.now() - player.projectileTimer > player.shootDelay) {
+        if(Date.now() - player.projectileTimer > player.shootDelay && (player.bullets > 0 || player.cheatmode == true) ) {
             projectiles.push(
                 new Projectile(
                     player.x + player.width/2,
@@ -596,8 +809,18 @@ function executeCommands() {
                     1000
                     )
                 );
+            player.bullets = player.bullets > 0 ? player.bullets - 1 : 0;
         }
         player.projectileTimer = Date.now();
+    }
+    // button c: cheat mode on
+    if(keys[67]) {
+        player.cheatmode = true;
+    }
+
+    // button v: cheat mode off
+    if (keys[86]) {
+        player.cheatmode = false;
     }
 }
 function colCheck(shapeA, shapeB) {
