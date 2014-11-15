@@ -9,7 +9,8 @@
             <h1>My Little Platformer</h1>
             <h3>Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind!
             Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind!</h3>
-            <input id="StartButton" type="button" value="Start" onclick="startGame()" />
+            <input type="text" id="playerName" placeholder="Enter your name here" onkeyup="enableStartButton()" />
+            <input disabled id="StartButton" type="button" value="Start" onclick="startGame()" />
         </div>
     </div>
 
@@ -19,7 +20,9 @@
 </div>
 <script>
 // All of our JavaScript will go here.
-
+function enableStartButton() {
+    document.getElementById("StartButton").disabled = false;
+}
 function restartGame() {
     document.getElementById("RestartButton").style.display = "none";
     givenTime = 100;
@@ -33,6 +36,7 @@ function restartGame() {
     initialiseMap();
     player.x = playerInitX;
     player.y = playerInitY;
+    player.bullets = 8;
     player.velX = 0;
     player.velY = 0;
     player.score = initScore;
@@ -41,6 +45,7 @@ function restartGame() {
 var isStarted = false;
 // start game function 
 function startGame() {
+    player.name = document.getElementById("playerName").value;
     isStarted = true;
     startTime = new Date().getTime();
     initialiseMap();
@@ -126,6 +131,8 @@ var charImage = new Image();
 // charImage.onload = setAssetReady;
 charImage.src = PATH_CHAR;
 
+var monsterImage = new Image();
+monsterImage.src = "monster_sprite2.png";
 // function setAssetReady()
 // {
 //     this.ready = true;
@@ -216,7 +223,9 @@ function initialiseMap() {
                     direction: "E",
                     velX: Math.random(),
                     leftBoundary: x*20-30,
-                    rightBoundary: x*20+30
+                    rightBoundary: x*20+30,
+                    currSpriteX: 0,
+                    currSpriteY: IMAGE_START_EAST_Y
                 });
             }
 
@@ -256,7 +265,9 @@ function spawnMonsters() {
                     direction: "E",
                     velX: Math.random(),
                     leftBoundary: x*20-30,
-                    rightBoundary: x*20+30
+                    rightBoundary: x*20+30,
+                    currSpriteX: 0,
+                    currSpriteY: IMAGE_START_EAST_Y
                 });
             }
         }
@@ -312,6 +323,7 @@ function update() {
         drawGoodThings();
         drawGUI();
         drawExit();
+        drawPlayerName();
         // if(monster_direction=="E") {
         //     item.x += 3;
         // } else {
@@ -340,7 +352,12 @@ function update() {
     }
     requestAnimationFrame(update);
 }
-
+function drawPlayerName() {
+    ctx.font = "10px Arial";
+    ctx.fillStyle = "black";
+    var len = player.name.length; 
+    ctx.fillText(player.name, player.x-len*2, player.y-25);
+}
 function ScoreRecord(name, score) {
     this.name = name;
     this.score = score;
@@ -435,6 +452,7 @@ function handleNextLevel() {
         player.y = playerInitY;
         player.velX = 0;
         player.velY = 0;
+        player.bullets = 8;
         keys = [];
         // update score + remaining secs
         player.score += remainingTime;
@@ -564,6 +582,16 @@ function updateMonstersCoordinates() {
         }
         if(monster.x < monster.leftBoundary) {
             monster.direction = "E";
+        }
+        // update sprite sheet coords
+        if (count%10==0) monster.currSpriteX += CHAR_WIDTH;
+        if(monster.direction=="E") {
+            monster.currSpriteY = IMAGE_START_EAST_Y;
+        } else {
+            monster.currSpriteY = IMAGE_START_WEST_Y;
+        }
+        if (monster.currSpriteX >= SPRITE_WIDTH) {
+            monster.currSpriteX = 0;
         }
     }
 }
@@ -709,8 +737,10 @@ function drawMonster() {
 
     for(var i=0; i<monsters.length; i++) {
         var monster = monsters[i];
-        ctx.fillStyle = "red";
-        ctx.fillRect(monster.x, monster.y, monster.width, monster.height);
+        // ctx.fillStyle = "red";
+        // ctx.fillRect(monster.x, monster.y, monster.width, monster.height);
+        ctx.drawImage(monsterImage,monster.currSpriteX,monster.currSpriteY, CHAR_WIDTH,CHAR_HEIGHT,
+                    monster.x-10,monster.y-11,CHAR_WIDTH,CHAR_HEIGHT);
     }
 }
 function updatePlayerCoordinates() {
