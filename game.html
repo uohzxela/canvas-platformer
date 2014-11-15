@@ -7,8 +7,12 @@
     <div id="SplashScreen" style="border:1px solid #000; width: 1000px; height: 600px; ">
         <div align="center" style = "margin-top:100px; margin-right: 100px; margin-left: 100px">
             <h1>My Little Platformer</h1>
-            <h3>Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind!
-            Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind! Get ready for some spectacular action that will blow your mind!</h3>
+            <h2>Instructions</h2>
+            <hr>
+            <h3>Arrow buttons to jump </h3>
+            <h3>Spacebar to shoot</h3>
+            <h3>Get all coins to exit to next level</h3>
+            <h3>Press 'c' to turn on cheat mode and 'v' to turn it off </h3>
             <input type="text" id="playerName" placeholder="Enter your name here" onkeyup="enableStartButton()" />
             <input disabled id="StartButton" type="button" value="Start" onclick="startGame()" />
         </div>
@@ -122,6 +126,12 @@ var CHAR_WIDTH = 24,
     IMAGE_START_WEST_Y = 96,
     SPRITE_WIDTH = 72;
 
+var COIN_WIDTH = 15,
+    COIN_HEIGHT = 16,
+    COIN_SPRITE_WIDTH = 60;
+
+var coinSpriteX = 0;
+
 var TEXT_PRELOADING = "Loading ...", 
     TEXT_PRELOADING_X = 200, 
     TEXT_PRELOADING_Y = 200;
@@ -133,6 +143,16 @@ charImage.src = PATH_CHAR;
 
 var monsterImage = new Image();
 monsterImage.src = "monster_sprite2.png";
+
+var goodThingImage = new Image();
+goodThingImage.src = "coin_sprite.png";
+
+var tileImage = new Image();
+tileImage.src = "tile_sprite.png";
+
+var exitImage = new Image();
+exitImage.src = "exit_sprite.png";
+
 // function setAssetReady()
 // {
 //     this.ready = true;
@@ -221,7 +241,7 @@ function initialiseMap() {
                     width: 20,
                     height: 20,
                     direction: "E",
-                    velX: Math.random(),
+                    velX: Math.random() * (1- 0.3) + 0.3,
                     leftBoundary: x*20-30,
                     rightBoundary: x*20+30,
                     currSpriteX: 0,
@@ -234,7 +254,8 @@ function initialiseMap() {
                     x: x*20,
                     y: y*20,
                     width: 20,
-                    height: 20
+                    height: 20,
+                    currSpriteX: 0
                 });
             }
 
@@ -353,10 +374,12 @@ function update() {
     requestAnimationFrame(update);
 }
 function drawPlayerName() {
-    ctx.font = "10px Arial";
-    ctx.fillStyle = "black";
-    var len = player.name.length; 
-    ctx.fillText(player.name, player.x-len*2, player.y-25);
+    if(!isGameOver) {
+        ctx.font = "10px Arial";
+        ctx.fillStyle = "black";
+        var len = player.name.length; 
+        ctx.fillText(player.name, player.x-len*2, player.y-25);
+    }
 }
 function ScoreRecord(name, score) {
     this.name = name;
@@ -519,8 +542,10 @@ function whiteSpace(num) {
 }
 function drawExit() {
     if(goodThings.length == 0 ) {
-        ctx.fillStyle = "gold";
-        ctx.fillRect(exit.x, exit.y, exit.width, exit.height);
+        // ctx.fillStyle = "gold";
+        // ctx.fillRect(exit.x, exit.y, exit.width, exit.height);
+        ctx.drawImage(exitImage,0,0, 28,28,
+            exit.x,exit.y-8,28,28);
     }
 }
 
@@ -728,8 +753,18 @@ function handlePlayerExitCollision() {
 function drawGoodThings() {
     for(var i=0; i<goodThings.length; i++) {
         var g = goodThings[i];
-        ctx.fillStyle = "green";
-        ctx.fillRect(g.x, g.y, g.width, g.height);
+        // ctx.fillStyle = "green";
+        // ctx.fillRect(g.x, g.y, g.width, g.height);
+        if(count%10==0) {
+            g.currSpriteX += COIN_WIDTH;
+            if (g.currSpriteX >= COIN_SPRITE_WIDTH) {
+
+                g.currSpriteX = 0;
+            }
+    
+        }
+        ctx.drawImage(goodThingImage,g.currSpriteX, 0, COIN_WIDTH,COIN_HEIGHT,
+            g.x,g.y,COIN_WIDTH,COIN_HEIGHT);
     }
 }
 
@@ -740,7 +775,7 @@ function drawMonster() {
         // ctx.fillStyle = "red";
         // ctx.fillRect(monster.x, monster.y, monster.width, monster.height);
         ctx.drawImage(monsterImage,monster.currSpriteX,monster.currSpriteY, CHAR_WIDTH,CHAR_HEIGHT,
-                    monster.x-10,monster.y-11,CHAR_WIDTH,CHAR_HEIGHT);
+                    monster.x-4,monster.y-11,CHAR_WIDTH,CHAR_HEIGHT);
     }
 }
 function updatePlayerCoordinates() {
@@ -757,7 +792,9 @@ function drawPlatforms() {
     
     player.grounded = false;
     for (var i = 0; i < boxes.length; i++) {
-        ctx.rect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
+        // ctx.rect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
+        ctx.drawImage(tileImage,80,20, 20,20,
+                    boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
         
         var dir = colCheck(player, boxes[i]);
 
