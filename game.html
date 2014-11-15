@@ -9,7 +9,7 @@
             <h1>My Little Platformer</h1>
             <h2>Instructions</h2>
             <hr>
-            <h3>Arrow buttons to jump </h3>
+            <h3>Arrow buttons to move and jump </h3>
             <h3>Spacebar to shoot</h3>
             <h3>Get all coins to exit to next level</h3>
             <h3>Press 'c' to turn on cheat mode and 'v' to turn it off </h3>
@@ -153,6 +153,8 @@ tileImage.src = "tile_sprite.png";
 var exitImage = new Image();
 exitImage.src = "exit_sprite.png";
 
+var bgImage = new Image();
+bgImage.src = "background_sprite1.png";
 // function setAssetReady()
 // {
 //     this.ready = true;
@@ -337,6 +339,7 @@ function update() {
         clearCanvas();
 
         // draw objects
+        drawBackground();
         drawProjectiles();
         drawPlayer();
         drawPlatforms();
@@ -372,6 +375,11 @@ function update() {
         
     }
     requestAnimationFrame(update);
+}
+
+function drawBackground() {
+    ctx.drawImage(bgImage,0,3, 518,436,
+                0,0,gameWidth,height);    
 }
 function drawPlayerName() {
     if(!isGameOver) {
@@ -793,7 +801,7 @@ function drawPlatforms() {
     player.grounded = false;
     for (var i = 0; i < boxes.length; i++) {
         // ctx.rect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
-        ctx.drawImage(tileImage,80,20, 20,20,
+        ctx.drawImage(tileImage,81,20, 19,20,
                     boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
         
         var dir = colCheck(player, boxes[i]);
