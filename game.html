@@ -1,17 +1,19 @@
 <!doctype html>
 <html>
 <head>
-    <title>My fancy game</title>
+    <title>My Little Platformer</title>
 </head>
 <body>
-    <div id="SplashScreen" style="border:1px solid #000; width: 1000px; height: 600px; ">
-        <div align="center" style = "margin-top:100px; margin-right: 100px; margin-left: 100px">
+    <div id="SplashScreen" style="border:1px solid #000; width: 1000px; height: 600px; 
+                background-image: url('images/background_sprite1.png'); background-size: 1000px 600px;">
+        <div align="center" style = "margin-top:100px; margin-right: 100px; margin-left: 100px;">
             <h1>My Little Platformer</h1>
+            <small>by Alex Jiao Ziheng 20254906</small>
             <h2>Instructions</h2>
             <hr>
-            <h3>Arrow buttons to move and jump </h3>
+            <h3>Arrow buttons (or W,A,D) to move and jump </h3>
             <h3>Spacebar to shoot</h3>
-            <h3>Get all coins to exit to next level</h3>
+            <h3>Collect all coins to unlock the exit for next level</h3>
             <h3>Press 'c' to turn on cheat mode and 'v' to turn it off </h3>
             <input type="text" id="playerName" placeholder="Enter your name here" onkeyup="enableStartButton()" />
             <input disabled id="StartButton" type="button" value="Start" onclick="startGame()" />
@@ -35,6 +37,7 @@ function restartGame() {
     isFirstTime = true;
     currentLevel = 1;
     monsters = [];
+    boxes = [];
     goodThings = [];
     keys = [];
     initialiseMap();
@@ -49,7 +52,8 @@ function restartGame() {
 var isStarted = false;
 // start game function 
 function startGame() {
-    player.name = document.getElementById("playerName").value;
+    var playerName = document.getElementById("playerName").value.trim();
+    player.name = playerName == "" ? "Anonymous" : playerName;
     isStarted = true;
     startTime = new Date().getTime();
     initialiseMap();
@@ -66,7 +70,7 @@ var canvas = document.getElementById("canvas"),
     height = 600,
     player = {
       x : width/2-90,
-      y : height - 25,
+      y : height-25,
       width : 5,
       height : 5,
       speed: 3,
@@ -95,8 +99,10 @@ var initScore = 0;
 var gameWidth = 800;
 
 var monsters = [];
+var flyingMonser;
 var goodThings = [];
 var exit;
+var portalStart, portalEnd;
 
 var score = 100;
 var startTime;
@@ -118,7 +124,7 @@ var  currX, currY;
 // for platform creation
 var boxes = []
 
-var PATH_CHAR = "sprite_sheet2.png";
+var PATH_CHAR = "images/sprite_sheet2.png";
 
 var CHAR_WIDTH = 24,
     CHAR_HEIGHT = 32,
@@ -130,6 +136,15 @@ var COIN_WIDTH = 15,
     COIN_HEIGHT = 16,
     COIN_SPRITE_WIDTH = 60;
 
+var FLYING_MONSTER_WIDTH = 32,
+    FLYING_MONSTER_HEIGHT = 32,
+    FLYING_MONSTER_SPRITE_WIDTH = 128;
+
+var PROJECTILE_WIDTH = 23,
+    PROJECTILE_HEIGHT = 7;
+
+var projectileSpriteY = 0;
+
 var coinSpriteX = 0;
 
 var TEXT_PRELOADING = "Loading ...", 
@@ -137,49 +152,59 @@ var TEXT_PRELOADING = "Loading ...",
     TEXT_PRELOADING_Y = 200;
 
 var charImage = new Image();
-// charImage.ready = false;
-// charImage.onload = setAssetReady;
 charImage.src = PATH_CHAR;
 
 var monsterImage = new Image();
-monsterImage.src = "monster_sprite2.png";
+monsterImage.src = "images/monster_sprite2.png";
 
 var goodThingImage = new Image();
-goodThingImage.src = "coin_sprite.png";
+goodThingImage.src = "images/coin_sprite.png";
 
 var tileImage = new Image();
-tileImage.src = "tile_sprite.png";
+tileImage.src = "images/tile_sprite.png";
 
 var exitImage = new Image();
-exitImage.src = "exit_sprite.png";
+exitImage.src = "images/exit_sprite.png";
 
 var bgImage = new Image();
-bgImage.src = "background_sprite1.png";
-// function setAssetReady()
-// {
-//     this.ready = true;
-// }
+bgImage.src = "images/background_sprite1.png";
 
+var teleporterImage = new Image();
+teleporterImage.src = "images/teleporter_sprite.png";
 
-// ctx.fillStyle = "grey";
-// ctx.fillRect(0,0,canvas.width,canvas.height);
-// ctx.fillStyle = "#000";
-// ctx.fillText(TEXT_PRELOADING, TEXT_PRELOADING_X, TEXT_PRELOADING_Y);
-// var preloader = requestAnimationFrame(preloading);
+var projectileImage = new Image();
+projectileImage.src = "images/projectile_sprite.png";
 
-// function preloading()
-// {   
-//     if (charImage.ready && false)
-//     {
-//         clearInterval(preloader);
-        
-//         requestAnimationFrame(update); 
-//     }
-// }
+var flyingMonsterImage = new Image();
+flyingMonsterImage.src = "images/bat_sprite.png";
+
+var bgMusic = new Audio("sounds/background.wav");
+bgMusic.loop = true;
+bgMusic.play();
+
+var shootSnd = new Audio("sounds/arrow.wav");
+shootSnd.loop = false;
+
+var hitSnd = new Audio("sounds/hit.wav");
+hitSnd.loop = false;
+
+var levelupSnd = new Audio("sounds/levelup.wav");
+levelupSnd.loop = false;
+
+var gameoverSnd = new Audio("sounds/gameover.wav");
+gameoverSnd.loop = false;
+
 
 currX = 0;
 currY = IMAGE_START_EAST_Y;
 
+// E: exit
+// X: monster
+// G: good thing
+// P: start portal; T: end portal
+// F: flying monster
+// M: movable platform
+// #: platform
 var GAME_MAP = new Array(
     "                                        ",
     "                                        ",
@@ -193,33 +218,34 @@ var GAME_MAP = new Array(
     "          G  ##  X G                 ###",
     "         ###########                ####",
     "#    #                 ##       ########",
-    "#   ##                ######            ",
+    "# T ##                ######            ",
     "#########          ##########           ",
     "            ##      ##########          ",
     "           #####                        ",
-    "         ########                 G  ###",
-    "    ######     ##                #######",
-    "##              ###   ###               ",
+    "         ########  F                 MMM",
+    "    ######     ##               MMMMMMMM",
+    "##              ###   ### G             ",
     "###               #   #######           ",
     "######    G       #   #########      X  ",
     "#####     #                        #####",
     "        ####   X                  ######",
     "       #############             #######",
     "      #####             G  ##   ######  ",
-    " G   ###                ####            ",
+    " P   ###                ####            ",
     "##                    ####              ",
     "###           # #                       ",
-    "####   #  X  ######   G  X     X   ##   ",
+    "#### G #  X  ######   G  X     X   ##   ",
     "########################################"
     )
 function initialiseMap() {
     var y,x;
     for(y=0; y<GAME_MAP.length; y++) {
         var start = null, end = null;
-
+        var isMovable = false;
         for(x=0; x<GAME_MAP[y].length; x++) {
-            if(start==null && GAME_MAP[y].charAt(x) == '#') {
+            if(start==null && (GAME_MAP[y].charAt(x) == '#' || GAME_MAP[y].charAt(x) == 'M')) { 
                 start = x;
+                isMovable = GAME_MAP[y].charAt(x) == 'M' ? true : false;
             }
             if (start != null && GAME_MAP[y].charAt(x) == ' ') {
                 end = x - 1;
@@ -232,7 +258,9 @@ function initialiseMap() {
                     x: start * 20,
                     y: y*20,
                     width: (end-start+1)*20,
-                    height: 20
+                    height: 20,
+                    velY: isMovable ? 0.1 : 0,
+                    origY: y*20
                 });
                 start = end = null;
             }
@@ -243,7 +271,7 @@ function initialiseMap() {
                     width: 20,
                     height: 20,
                     direction: "E",
-                    velX: Math.random() * (1- 0.3) + 0.3,
+                    velX: Math.random() * (1- 0.4) + 0.4,
                     leftBoundary: x*20-30,
                     rightBoundary: x*20+30,
                     currSpriteX: 0,
@@ -269,8 +297,60 @@ function initialiseMap() {
                     height: 20
                 };
             }
-        }
+
+            if(GAME_MAP[y].charAt(x) == 'P') {
+                portalStart = {
+                    x: x * 20-17,
+                    y: y * 20,
+                    width: 20,
+                    height: 20
+                };
+            }
+            if(GAME_MAP[y].charAt(x) == 'T') {
+                portalEnd = {
+                    x: x * 20-18,
+                    y: y * 20,
+                    width: 32,
+                    height: 32
+                };
+            }
+            if(GAME_MAP[y].charAt(x) == 'F') {
+                flyingMonster = {
+                    x: x * 20,
+                    y: y * 20,
+                    width: 20,
+                    height: 20,
+                    velX: 0.2,
+                    velY: 0,
+                    direction: "E",
+                    currSpriteX: 0,
+                    currSpriteY: 32
+                };
+            }
+         }
     }
+    // game frame
+    boxes.push({
+        x: 0,
+        y: 0,
+        width: 10,
+        height: height,
+        velY: 0
+    });
+    boxes.push({
+        x: 0,
+        y: height - 2,
+        width: gameWidth,
+        height: 50,
+        velY: 0
+    });
+    boxes.push({
+        x: gameWidth - 10,
+        y: 0,
+        width: 50,
+        height: height,
+        velY: 0
+    });
 }
 
 function spawnMonsters() {
@@ -297,30 +377,6 @@ function spawnMonsters() {
     }
 }
 
-// game frame
-boxes.push({
-    x: 0,
-    y: 0,
-    width: 10,
-    height: height
-});
-boxes.push({
-    x: 0,
-    y: height - 2,
-    width: gameWidth,
-    height: 50
-});
-boxes.push({
-    x: gameWidth - 10,
-    y: 0,
-    width: 50,
-    height: height
-});
-
-
-var monster_direction = "E";
-
-
 function update() {
     // console.log("is started: " + isStarted);
     if(isStarted === true) {
@@ -328,55 +384,106 @@ function update() {
         if(!isGameOver == true) {
             executeCommands();
         }
-
         // update values
         updateProjectiles();
         updateSpriteSheetCoordinates();
         updatePlayerVelocity();
         updatePlayerCoordinates();
         updateMonstersCoordinates();
+        updateFlyingMonsterTrajectory();
 
         clearCanvas();
 
         // draw objects
         drawBackground();
+        drawExit();
         drawProjectiles();
-        drawPlayer();
         drawPlatforms();
-        drawMonster();
+        drawMonsters();
+        drawFlyingMonster();
+        drawPortals();
+        drawPlayer();
         drawGoodThings();
         drawGUI();
-        drawExit();
         drawPlayerName();
-        // if(monster_direction=="E") {
-        //     item.x += 3;
-        // } else {
-        //     item.x -= 3;
-        // }
-
-        // if(item.x > width) {
-        //     monster_direction = "W";
-        // }
-        // if(item.x < 0) {
-        //     monster_direction = "E";
-        // }
 
 
         // handle collision    
         handlePlayerMonsterCollision();
         handleProjectileMonsterCollision();
         handleProjectilePlatformCollision();
+        handleProjectileFlyingMonsterCollision()
         handlePlayerGoodThingCollision();
         handlePlayerExitCollision();
+        handlePlayerPortalCollision();
+        handlePlayerFlyingMonsterCollision();
+
         handleNextLevel();
-
         handleGameOver();
-
-        
     }
     requestAnimationFrame(update);
 }
+function handlePlayerFlyingMonsterCollision() {
+    if (
+        flyingMonster != null &&
+        player.x < flyingMonster.x + flyingMonster.width &&
+        player.x + flyingMonster.width > flyingMonster.x &&
+        player.y < flyingMonster.y + flyingMonster.height &&
+        player.y + player.height >flyingMonster.y &&
+        player.cheatmode == false
+    ) {
+        isGameOver = true;
 
+    }
+}
+
+function updateFlyingMonsterTrajectory() {
+    if(flyingMonster != null) {
+        var endX = player.x;
+        var endY = player.y;
+        var startX = flyingMonster.x;
+        var startY = flyingMonster.y;
+        length = Math.sqrt(Math.pow((endX - startX), 2) + Math.pow((endY - startY), 2));
+
+        flyingMonster.velX = isGameOver ? 0 : (endX - startX) / length;
+        flyingMonster.velY = isGameOver ? 0 : (endY - startY) / length;
+
+        var velX = flyingMonster.velX, 
+            velY = flyingMonster.velY;
+
+        if(velX < 0 && velX < -0.5) flyingMonster.velX += 0.5;
+        if(velX > 0 && velX > 0.5) flyingMonster.velX -= 0.5;
+        if(velY < 0 && velY < -0.5) flyingMonster.velY += 0.5;
+        if(velY > 0 && velY > 0.5) flyingMonster.velY -= 0.5;
+
+        flyingMonster.direction = flyingMonster.velX >= 0 ? "E" : "W";
+    }
+    
+}
+
+function drawFlyingMonster() {
+    if(flyingMonster != null) {
+        flyingMonster.x += flyingMonster.velX;
+        flyingMonster.y += flyingMonster.velY;
+        flyingMonster.currSpriteY = flyingMonster.direction == "E" ? 32 : 96;
+        if (count%10==0) flyingMonster.currSpriteX += FLYING_MONSTER_WIDTH;
+        if (flyingMonster.currSpriteX >= FLYING_MONSTER_SPRITE_WIDTH) {
+            flyingMonster.currSpriteX = 0;
+        }
+        // ctx.fillStyle = "red";
+        // ctx.fillRect(flyingMonster.x, flyingMonster.y, flyingMonster.width, flyingMonster.height);
+        ctx.drawImage(flyingMonsterImage, flyingMonster.currSpriteX, flyingMonster.currSpriteY, 
+                        FLYING_MONSTER_WIDTH, FLYING_MONSTER_HEIGHT, flyingMonster.x-5, flyingMonster.y-5,
+                        FLYING_MONSTER_WIDTH, FLYING_MONSTER_HEIGHT);
+    }
+}
+
+function drawPortals() {
+    // ctx.fillRect(portalStart.x, portalStart.y, portalStart.width, portalStart.height);
+    // ctx.fillRect(portalEnd.x, portalEnd.y, portalEnd.width, portalEnd.height);
+    ctx.drawImage(teleporterImage, 0, 0, 32, 32, portalStart.x, portalStart.y-9, 32, 32);
+    ctx.drawImage(teleporterImage, 0, 0, 32, 32, portalEnd.x, portalEnd.y-9, 32, 32);
+}
 function drawBackground() {
     ctx.drawImage(bgImage,0,3, 518,436,
                 0,0,gameWidth,height);    
@@ -434,12 +541,12 @@ function setHighScoreTable(table) {
 
 function addHighScore(name, score) {
     var table = getHighScoreTable();
-    console.log("table length: " + table.length);
+    // console.log("table length: " + table.length);
 
     for(var i=0; i<table.length; i++) {
         if(score >= table[i].score) {
             var record = new ScoreRecord(name, score);
-            console.log("splicing table");
+            // console.log("splicing table");
             table.splice(i, 0, record);
             return table;
         }
@@ -477,7 +584,7 @@ function getCookie(name) {
 function handleNextLevel() {
     if(isNextLevel == true) {
         // notify player that he finished the current level
-        alert("you owned this lvl :)");
+        alert("You owned this level :)");
         // reposition char at origin
         player.x = playerInitX;
         player.y = playerInitY;
@@ -487,12 +594,14 @@ function handleNextLevel() {
         keys = [];
         // update score + remaining secs
         player.score += remainingTime;
+        player.score += (100*currentLevel);
         // update GUI with current level number
         currentLevel++;
         // update GUI with new timer + remaining sec
         givenTime = 100 + remainingTime;
         startTime = new Date().getTime();
         // populate map with more monsters
+        boxes = [];
         monsters = [];
         goodThings = [];
         initialiseMap();
@@ -508,6 +617,7 @@ function handleGameOver() {
         if(isFirstTime == true) {
             var table = addHighScore(player.name, player.score);
             setHighScoreTable(table);
+            gameoverSnd.play();
         }
         drawGameOverScreen();
         document.getElementById("RestartButton").style.display = "block";
@@ -636,6 +746,7 @@ function Projectile(x, y, direction, size, color, speed) {
     this.size = size;
     this.color = color;
     this.speed = speed;
+    this.currSpriteY = facing == "E" ? 0 : 7;
 }
 
 function updateProjectiles() {
@@ -646,7 +757,7 @@ function updateProjectiles() {
         else 
             projectiles[key].x -= 5; 
         if (projectiles[key].x > canvas.width || projectiles[key].x < 0) {
-            console.log("removed projectile");
+            // console.log("removed projectile");
             projectiles.splice(key, 1);
         }
     }
@@ -669,7 +780,7 @@ function handleProjectileMonsterCollision() {
         for(var i=0; i<monsters.length; i++) {
             var monster = monsters[i];
             if (projectiles[key] == null) {
-                console.log("projectile null");
+                // console.log("projectile null");
                 continue;
             }
             if (
@@ -680,11 +791,34 @@ function handleProjectileMonsterCollision() {
             ) {
                 // item.x = Math.random() * canvas.width;
                 // item.y = height - 10;
+                hitSnd.play();
                 monsters.splice(i, 1);
                 projectiles.splice(key, 1);
-                player.score++;
+                player.score += 10;
             }
         }
+    }
+}
+
+function handleProjectileFlyingMonsterCollision() {
+    for (var key in projectiles) {
+        if (projectiles[key] == null) {
+            // console.log("projectile null");
+            continue;
+        }
+        if (
+            flyingMonster != null &&
+            projectiles[key].x < flyingMonster.x + flyingMonster.width &&
+            projectiles[key].x + 10 > flyingMonster.x &&
+            projectiles[key].y < flyingMonster.y + flyingMonster.height &&
+            projectiles[key].y + 10 > flyingMonster.y
+        ) {
+            flyingMonster = null;
+            hitSnd.play();
+            projectiles.splice(key, 1);
+            player.score += 50;
+        }
+
     }
 }
 
@@ -741,6 +875,18 @@ function handlePlayerGoodThingCollision() {
         }
     }
 }
+function handlePlayerPortalCollision() {
+    if (
+        player.x < portalStart.x + portalStart.width &&
+        player.x + portalStart.width > portalStart.x &&
+        player.y < portalStart.y + portalStart.height &&
+        player.y + player.height >portalStart.y 
+    ) {
+        // console.log("you won this level");
+        player.x = portalEnd.x;
+        player.y = portalEnd.y - 20;
+    }
+}
 
 function handlePlayerExitCollision() {
     if (
@@ -753,7 +899,8 @@ function handlePlayerExitCollision() {
         // item.x = Math.random() * canvas.width;
         // item.y = height - 10;
         isNextLevel = true;
-        console.log("you won this level");
+        levelupSnd.play();
+        // console.log("you won this level");
     }
 }
 
@@ -769,14 +916,13 @@ function drawGoodThings() {
 
                 g.currSpriteX = 0;
             }
-    
         }
         ctx.drawImage(goodThingImage,g.currSpriteX, 0, COIN_WIDTH,COIN_HEIGHT,
             g.x,g.y,COIN_WIDTH,COIN_HEIGHT);
     }
 }
 
-function drawMonster() {
+function drawMonsters() {
 
     for(var i=0; i<monsters.length; i++) {
         var monster = monsters[i];
@@ -790,10 +936,10 @@ function updatePlayerCoordinates() {
     if(player.grounded){
          player.velY = 0;
     }
-    
     player.x += player.velX;
     player.y += player.velY;
 }
+// var m = 0;
 function drawPlatforms() {
     ctx.fillStyle = "black";
     ctx.beginPath();
@@ -803,6 +949,15 @@ function drawPlatforms() {
         // ctx.rect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
         ctx.drawImage(tileImage,81,20, 19,20,
                     boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
+
+        // update y coord, platform moves if its velY is non-zero
+        boxes[i].y -= boxes[i].velY;
+
+        // toggle movable platform direction
+        if (Math.round(Math.abs(boxes[i].origY - boxes[i].y)) == 20) {
+            // console.log("changed movable platform direction");
+            boxes[i].velY = -(boxes[i].velY);
+        }
         
         var dir = colCheck(player, boxes[i]);
 
@@ -817,12 +972,15 @@ function drawPlatforms() {
         }
 
     }
-    ctx.fill();
+    // m+=0.01;
+    // ctx.drawImage(tileImage,81,20, 19,20,
+    //         gameWidth/2, m, 40, 20);
+    // ctx.fill();
 }
 function drawPlayer() {
     // draw a small red box, which will eventually become our player.
     // ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-    // ctx.fillRect(player.x, player.y, player.width, player.height);
+    // ctx.fillRect(player.x, player.y, CHAR_WIDTH, CHAR_HEIGHT);
     if(!isGameOver) {
         ctx.drawImage(charImage,currX,currY, CHAR_WIDTH,CHAR_HEIGHT,
                     player.x-10,player.y-23,CHAR_WIDTH,CHAR_HEIGHT);
@@ -830,7 +988,9 @@ function drawPlayer() {
 }
 function drawProjectiles() {
     for (var key in projectiles) {
-        drawSquare(projectiles[key].x, projectiles[key].y, projectiles[key].size, projectiles[key].color);
+        // drawSquare(projectiles[key].x, projectiles[key].y, projectiles[key].size, projectiles[key].color);
+        ctx.drawImage(projectileImage,0, projectiles[key].currSpriteY, PROJECTILE_WIDTH, PROJECTILE_HEIGHT,
+                    projectiles[key].x,projectiles[key].y,PROJECTILE_WIDTH,PROJECTILE_HEIGHT);
     }
 }
 function updateSpriteSheetCoordinates() {
@@ -884,6 +1044,7 @@ function executeCommands() {
                     1000
                     )
                 );
+            shootSnd.play();
             player.bullets = player.bullets > 0 ? player.bullets - 1 : 0;
         }
         player.projectileTimer = Date.now();
