@@ -3,6 +3,8 @@
 ![Image of gameplay]
 (http://img.photobucket.com/albums/v232/Ravon/Screenshot%20from%202015-03-25%20223218.png)
 
+Video: https://www.dropbox.com/s/q9fwdu6obbmvf40/platformer.mp4?dl=0
+
 A platform game created using HTML5 Canvas API and grit. Just double click on game.html to play.
 
 ## Features:
